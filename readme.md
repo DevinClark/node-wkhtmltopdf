@@ -1,3 +1,5 @@
+## Assume documentation is inaccurate as this was a major refactor.
+
 node-wkhtmltopdf
 ================
 
