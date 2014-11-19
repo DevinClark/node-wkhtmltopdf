@@ -1,91 +1,146 @@
 var spawn = require('child_process').spawn;
-var slang = require('slang');
+var concat = require('concat-stream');
+var config_schema = require('./config-schema.js');
+var joi = require('joi');
+
+var wkhtmltopdf = {};
+wkhtmltopdf.command = './bin/bin/wkhtmltopdf-centos6-amd64';
 
 function quote(val) {
   // escape and quote the value if it is a string and this isn't windows
-  if (typeof val === 'string' && process.platform !== 'win32')
+  if (typeof val === 'string') {
     val = '"' + val.replace(/(["\\$`])/g, '\\$1') + '"';
-    
+  }
+
   return val;
 }
 
-function wkhtmltopdf(input, options, callback) {
-  if (!options) {
-    options = {};
-  } else if (typeof options == 'function') {
-    callback = options;
-    options = {};
-  }
-  
-  var output = options.output;
-  delete options.output;
-    
-  // make sure the special keys are last
-  var extraKeys = [];
-  var keys = Object.keys(options).filter(function(key) {
-    if (key === 'toc' || key === 'cover' || key === 'page') {
-      extraKeys.push(key);
-      return false;
-    }
-    
-    return true;
-  }).concat(extraKeys);
-  
-  var args = [wkhtmltopdf.command, '--quiet'];
-  keys.forEach(function(key) {
-    var val = options[key];
-    if (key !== 'toc' && key !== 'cover' && key !== 'page')
-      key = key.length === 1 ? '-' + key : '--' + slang.dasherize(key);
-    
-    if (val !== false)
-      args.push(key);
-      
-    if (typeof val !== 'boolean')
-      args.push(quote(val));
-  });
-  
-  var isUrl = /^(https?|file):\/\//.test(input);
-  args.push(isUrl ? quote(input) : '-');    // stdin if HTML given directly
-  args.push(output ? quote(output) : '-');  // stdout if no output file
+function render(options, callback) {
 
-  if (process.platform === 'win32') {
-    var child = spawn(args[0], args.slice(1));
-  } else {
-    // this nasty business prevents piping problems on linux
-    var child = spawn('/bin/sh', ['-c', args.join(' ') + ' | cat']);
+  if (options.useCompression) {
+    if (options.useCompression == true) {
+      delete options.useCompression;
+    } else {
+      options['no-pdf-compression'] = null;
+    }
   }
-  
-  // call the callback with null error when the process exits successfully
-  if (callback)
-    child.on('exit', function() { callback(null); });
-    
+
+  if (options.colorMode) {
+    if (options.colorMode == 'Color') {
+      delete options.colorMode;
+    } else {
+      options['grayscale'] = null;
+    }
+  }
+
+  var global_keys = [
+    'title',
+    'dpi',
+    'image-dpi',
+    'image-quality',
+    'colorMode',
+    'margin-top',
+    'margin-right',
+    'margin-bottom',
+    'margin-left',
+    'page-height',
+    'page-width',
+    'page-size',
+    'orientation',
+    'no-pdf-compression'
+  ];
+  var object_keys = [
+    'header-html',
+    'header-spacing',
+    'footer-html',
+    'footer-spacing',
+    'load-error-handling',
+    'background'
+  ];
+
+  var results = joi.validate(options, config_schema, {
+    allowUnknown: true
+  });
+
+  if (results.error) {
+    callback(new Error(results.error));
+  }
+
+  var key;
+  var page = results.value.page;
+  delete results.value.page;
+  var page_html = results.value['page-html'];
+  delete results.value['page-html'];
+  var out = results.value.out;
+  delete results.value.out;
+  var debug = results.value.debug;
+  delete results.value.debug;
+  var global_options = [];
+  var object_options = [];
+  var args = [];
+
+
+  for (key in results.value) {
+    if (global_keys.indexOf(key) !== -1) {
+      global_options.push('--' + key);
+      if (results.value[key]) {
+        global_options.push(results.value[key].toString());
+      }
+    }
+
+    if (object_keys.indexOf(key) !== -1) {
+      object_options.push('--' + key);
+      if (results.value[key]) {
+        object_options.push(results.value[key].toString());
+      }
+    }
+  }
+
+  args = global_options.concat(object_options);
+
+  args.push(page || '-');
+  args.push(out || '-');
+
+  args.unshift('--quiet');
+  args.unshift(wkhtmltopdf.command);
+  if (debug) {
+    console.log(args.join(' '));
+  }
+
+  var child = spawn(args[0], args.slice(1), { stdio: ['pipe', 'pipe', 'pipe'] });
+  var data_return;
+
+  // need to find out why I'm not returning the pdf stream.
+  // Good luck, Future Devin.
+
   // setup error handling
-  var stream = child.stdout;
+  var stream = child.stderr;
+
+  // write input to stdin
+  if (page_html) {
+    child.stdin.write(page_html);
+  }
+
+  var write = concat(function(data) {
+    callback(null, data);
+  });
+
+  stream.pipe(write);
+
   function handleError(err) {
+    console.log('handleError()');
+    console.log(err);
     child.removeAllListeners('exit');
     child.kill();
-    
-    // call the callback if there is one
-    if (callback)
-      callback(err);
-      
-    // if not, or there are listeners for errors, emit the error event
-    if (!callback || stream.listeners('error').length > 0)
-      stream.emit('error', err);
+
+    callback(new Error(err));
   }
-  
-  child.once('error', handleError);
-  child.stderr.once('data', function(err) {
-    handleError(new Error((err || '').toString().trim()));
-  });
-  
-  // write input to stdin if it isn't a url
-  if (!isUrl)
-    child.stdin.end(input);
-  
-  // return stdout stream so we can pipe
+
+  stream.on('error', handleError);
+
   return stream;
 }
 
-wkhtmltopdf.command = 'wkhtmltopdf';
-module.exports = wkhtmltopdf;
+module.exports = {
+  render: render
+};

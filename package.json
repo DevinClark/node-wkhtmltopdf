@@ -11,6 +11,7 @@
     "node": ">=0.6"
   },
   "dependencies": {
+    "concat-stream": "^1.4.6",
     "joi": "^4.9.0"
   },
   "repository": {

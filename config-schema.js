@@ -1,7 +1,9 @@
 var Joi = require('joi');
 
 module.exports = Joi.object().keys({
-  "page": Joi.string().required().notes('Pass "-" for a stream'),
+  "debug": Joi.boolean(),
+  "page": Joi.string(),
+  "page-html": Joi.string(),
   "out": Joi.string().notes('Pass "-" for a stream'),
   "documentTitle": Joi.string(),
   "dpi": Joi.number().integer(),
@@ -24,6 +26,7 @@ module.exports = Joi.object().keys({
   "web.defaultEncoding": Joi.string(),
   "load.load-media-error-handling": Joi.string().valid(['abort', 'skip', 'ignore'])
 })
+.xor('page', 'page-html')
 .rename('documentTitle', 'title')
 .rename('imageDPI', 'image-dpi')
 .rename('imageQuality', 'image-quality')
