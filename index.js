@@ -2,9 +2,14 @@ var spawn = require('child_process').spawn;
 var concat = require('concat-stream');
 var config_schema = require('./config-schema.js');
 var joi = require('joi');
+var os = require('os');
 
 var wkhtmltopdf = {};
-wkhtmltopdf.command = './bin/bin/wkhtmltopdf-centos6-amd64';
+if (os.platform() === 'darwin') {
+  wkhtmltopdf.command = 'wkhtmltopdf';
+} else {
+  wkhtmltopdf.command = './bin/bin/wkhtmltopdf-centos6-amd64';
+}
 
 function quote(val) {
   // escape and quote the value if it is a string and this isn't windows
