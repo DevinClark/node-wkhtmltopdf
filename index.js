@@ -111,9 +111,6 @@ function render(options, callback) {
   var child = spawn(args[0], args.slice(1), { stdio: ['pipe', 'pipe', 'pipe'] });
   var data_return;
 
-  // need to find out why I'm not returning the pdf stream.
-  // Good luck, Future Devin.
-
   // setup error handling
   var stream = child.stderr;
 
@@ -122,15 +119,12 @@ function render(options, callback) {
     child.stdin.write(page_html);
   }
 
-  var write = concat(function(data) {
-    callback(null, data);
-  });
-
-  stream.pipe(write);
-
   function handleError(err) {
-    console.log('handleError()');
-    console.log(err);
+    if (debug) {
+      console.log('handleError()');
+      console.log(err);
+    }
+
     child.removeAllListeners('exit');
     child.kill();
 
@@ -138,6 +132,12 @@ function render(options, callback) {
   }
 
   stream.on('error', handleError);
+
+  var write = concat(function(data) {
+    callback(null, data);
+  });
+
+  child.stdout.pipe(write);
 
   return stream;
 }
