@@ -16,6 +16,7 @@ function quote(val) {
 }
 
 function render(options, callback) {
+  callback = callback || Function.prototype;
 
   if (options.useCompression) {
     if (options.useCompression == true) {
