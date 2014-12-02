@@ -116,12 +116,10 @@ function render(options, callback) {
   var child = spawn(args[0], args.slice(1), { stdio: ['pipe', 'pipe', 'pipe'] });
   var data_return;
 
-  // setup error handling
-  var stream = child.stderr;
-
   // write input to stdin
   if (page_html) {
-    child.stdin.write(page_html);
+    child.stdin.write(page_html + '\n');
+    child.stdin.end();
   }
 
   function handleError(err) {
@@ -136,7 +134,7 @@ function render(options, callback) {
     callback(new Error(err));
   }
 
-  stream.on('error', handleError);
+  child.stderr.on('error', handleError);
 
   var write = concat(function(data) {
     callback(null, data);
@@ -144,7 +142,7 @@ function render(options, callback) {
 
   child.stdout.pipe(write);
 
-  return stream;
+  return child;
 }
 
 module.exports = {
