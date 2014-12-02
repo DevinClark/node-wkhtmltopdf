@@ -21,6 +21,8 @@ module.exports = Joi.object().keys({
   "header.spacing": Joi.string(),
   "footer.htmlUrl": Joi.string(),
   "footer.spacing": Joi.string(),
+  "footer.center": Joi.string(),
+  "footer.fontSize": Joi.string(),
   "orientation": Joi.string().valid(['Portrait', 'Landscape']),
   "useCompression": Joi.boolean(),
   "web.defaultEncoding": Joi.string(),
@@ -41,4 +43,6 @@ module.exports = Joi.object().keys({
 .rename('header.spacing', 'header-spacing')
 .rename('footer.htmlUrl', 'footer-html')
 .rename('footer.spacing', 'footer-spacing')
+.rename('footer.center', 'footer-center')
+.rename('footer.fontSize', 'footer-font-size')
 .rename('load.load-media-error-handling', 'load-error-handling');

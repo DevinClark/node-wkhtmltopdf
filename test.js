@@ -12,11 +12,12 @@ var stream = wkhtmltopdf.render({
   "page-html": '<html><body><h1>Test</h1><p>Hello world</p></body></html>',
   // "page": 'http://google.com',
   "size.pageSize": "Letter",
+  "footer.center": "Copyright 2004-2014 Weather Decision Technologies, Inc. - All rights reserved.",
   //"header.htmlUrl": "./template/archive-lightning-header.html",
   // "header.spacing": "5",
   // "footer.htmlUrl": "./template/archive-lightning-footer.html"
-  // "out": "./google-test.pdf"
-  "out": "-"
+  "out": "./google-test.pdf"
+  // "out": "-"
 }, function (err, data) {
   if (err) {
     throw new Error(err);

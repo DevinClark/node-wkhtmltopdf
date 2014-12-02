@@ -60,6 +60,8 @@ function render(options, callback) {
     'header-spacing',
     'footer-html',
     'footer-spacing',
+    'footer-center',
+    'footer-font-size',
     'load-error-handling',
     'background'
   ];
