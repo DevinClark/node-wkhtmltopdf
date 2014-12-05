@@ -3,6 +3,7 @@ var concat = require('concat-stream');
 var config_schema = require('./config-schema.js');
 var joi = require('joi');
 var os = require('os');
+var tmp = require('temporary');
 
 var wkhtmltopdf = {};
 if (os.platform() === 'darwin') {
@@ -12,7 +13,7 @@ if (os.platform() === 'darwin') {
 }
 
 function quote(val) {
-  // escape and quote the value if it is a string and this isn't windows
+  // escape and quote the value if it is a string
   if (typeof val === 'string') {
     val = '"' + val.replace(/(["\\$`])/g, '\\$1') + '"';
   }
@@ -86,28 +87,35 @@ function render(options, callback) {
   var global_options = [];
   var object_options = [];
   var args = [];
+  var tmp_file;
 
 
   for (key in results.value) {
     if (global_keys.indexOf(key) !== -1) {
       global_options.push('--' + key);
       if (results.value[key]) {
-        global_options.push(results.value[key].toString());
+        global_options.push(results.value[key]);
       }
     }
 
     if (object_keys.indexOf(key) !== -1) {
       object_options.push('--' + key);
       if (results.value[key]) {
-        object_options.push(results.value[key].toString());
+        object_options.push(results.value[key]);
       }
     }
   }
 
-  args = global_options.concat(object_options);
+  args = global_options;
 
   args.push(page || '-');
-  args.push(out || '-');
+  args = args.concat(object_options);
+  if (out === '-') {
+    tmp_file = new tmp.File();
+    args.push(tmp_file.path);
+  } else {
+    args.push(out);
+  }
 
   args.unshift('--quiet');
   args.unshift(wkhtmltopdf.command);
@@ -116,33 +124,27 @@ function render(options, callback) {
   }
 
   var child = spawn(args[0], args.slice(1), { stdio: ['pipe', 'pipe', 'pipe'] });
-  var data_return;
 
   // write input to stdin
   if (page_html) {
-    child.stdin.write(page_html + '\n');
+    child.stdin.write(page_html);
     child.stdin.end();
   }
 
-  function handleError(err) {
-    if (debug) {
-      console.log('handleError()');
-      console.log(err);
-    }
-
-    child.removeAllListeners('exit');
-    child.kill();
-
-    callback(new Error(err));
-  }
-
-  child.stderr.on('error', handleError);
-
-  var write = concat(function(data) {
-    callback(null, data);
+  child.on('error', function (error) {
+    callback(error);
   });
 
-  child.stdout.pipe(write);
+  child.on('close', function () {
+    if (out === '-') {
+      tmp_file.readFile(function (err, data) {
+        callback(err, data);
+        tmp_file.unlink();
+      });
+    }
+  });
+
+  child.stderr.pipe(process.stderr);
 
   return child;
 }
