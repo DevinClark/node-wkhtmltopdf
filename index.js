@@ -4,12 +4,13 @@ var config_schema = require('./config-schema.js');
 var joi = require('joi');
 var os = require('os');
 var tmp = require('temporary');
+var path = require('path');
 
 var wkhtmltopdf = {};
 if (os.platform() === 'darwin') {
   wkhtmltopdf.command = 'wkhtmltopdf';
 } else {
-  wkhtmltopdf.command = './bin/bin/wkhtmltopdf-centos6-amd64';
+  wkhtmltopdf.command = path.normalize(path.join(__dirname, './bin/bin/wkhtmltopdf-centos6-amd64'));
 }
 
 function quote(val) {
